@@ -4,11 +4,15 @@ pub const glsl = @import("gen/glsl.zig");
 
 pub const Builder = struct {
     allocator: *std.mem.Allocator,
+    generator: u32,
     id_count: u32 = 0,
     insns: std.ArrayListUnmanaged(Instruction) = .{},
 
-    pub fn init(allocator: *std.mem.Allocator) Builder {
-        return .{ .allocator = allocator };
+    pub fn init(allocator: *std.mem.Allocator, generator: ?u32) Builder {
+        return .{
+            .allocator = allocator,
+            .generator = generator orelse 0,
+        };
     }
     pub fn deinit(self: *Builder) void {
         for (self.insns.items) |insn| {
@@ -81,7 +85,7 @@ pub const Builder = struct {
     pub fn build(self: Builder, buf: *std.ArrayList(u32)) !void {
         try buf.append(core.magic_number); // Magic
         try buf.append(core.version); // Version
-        try buf.append(0); // Generator - TODO: if/when Ripple actually works, consider registering a magic number
+        try buf.append(self.generator); // Generator
         try buf.append(self.id_count + 1); // Bound - this number is greater than the largest ID
         try buf.append(0); // Reserved
 
@@ -156,7 +160,7 @@ pub const Operand = union(enum) {
 pub const Id = struct { n: u32 };
 
 test "SPIR-V generation" {
-    var b = Builder.init(std.testing.allocator);
+    var b = Builder.init(std.testing.allocator, 1234);
     defer b.deinit();
 
     try b.capability(.shader);
@@ -170,7 +174,7 @@ test "SPIR-V generation" {
         // Header
         core.magic_number,
         core.version,
-        0,
+        1234,
         1,
         0,
 
